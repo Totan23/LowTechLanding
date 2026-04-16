@@ -1,0 +1,23 @@
+{
+  "name": "lowtech-landing",
+  "version": "1.1.0",
+  "description": "Landing page para Lowtech — Soluciones tecnológicas para Venezuela",
+  "type": "module",
+  "scripts": {
+    "start": "concurrently -n web,api -c blue,magenta \"npm:web\" \"npm:api\"",
+    "web": "live-server --port=3000 --open=index.html",
+    "api": "node server.js",
+    "static": "live-server --port=3000 --open=index.html"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "openai": "^6.34.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "live-server": "^1.2.2"
+  }
+}
