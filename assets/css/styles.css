@@ -1767,7 +1767,9 @@ input {
 .conv-sticky {
   position: sticky;
   top: 72px; /* arranca debajo del navbar sticky para no quedar tapado */
-  height: calc(100vh - 72px);
+  /* 100svh = small viewport height, respeta el chrome visible de Safari iOS
+     donde 100vh normalmente sobrepasa el espacio real disponible. */
+  height: calc(100svh - 72px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2136,15 +2138,20 @@ input {
 }
 
 /* Overlay con degradado en la parte superior: cuando los mensajes salen
-   por arriba, se desvanecen detrás de este gradiente en vez de cortarse. */
+   por arriba, se desvanecen detrás de este gradiente en vez de cortarse.
+   Zona OPACA (primeros 32px) para esconder completamente los mensajes que
+   pasen debajo del HOY; luego fade hasta transparente. */
 .wa-chat-area::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 46px;
-  background: linear-gradient(180deg, #EFEAE2 0%, rgba(239, 234, 226, 0.75) 55%, rgba(239, 234, 226, 0) 100%);
+  height: 58px;
+  background: linear-gradient(180deg,
+    #EFEAE2 0%,
+    #EFEAE2 55%,
+    rgba(239, 234, 226, 0) 100%);
   z-index: 2;
   pointer-events: none;
 }
@@ -2153,21 +2160,19 @@ input {
   /* Pinneado arriba del chat (como WhatsApp real). No se mueve aunque el
      auto-scroll reacomode los mensajes por el typing collapse/expand. */
   position: sticky;
-  top: 4px;
-  z-index: 3;
+  top: 6px;
+  z-index: 4;
   align-self: center;
-  padding: 4px 10px;
-  background: rgba(225, 245, 254, 0.95);
+  padding: 4px 11px;
+  background: #DCF2FA;
   color: rgba(0, 0, 0, 0.55);
   border-radius: 6px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   margin-bottom: 6px;
   flex-shrink: 0;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 
 .wa-msg {
@@ -2380,32 +2385,39 @@ input {
 @media (max-width: 960px) {
   .conv-grid {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: 28px;
     padding: 0 24px;
   }
   .conv-text { text-align: center; max-width: 520px; margin: 0 auto; }
   .conv-text p { margin: 0 auto; }
   .conv-stage { height: 380vh; }
-  .conv-phone { width: min(280px, calc((100vh - 160px) * 9 / 19.5)); }
+  .conv-phone { width: min(240px, calc((100svh - 260px) * 9 / 19.5)); }
 }
 
 @media (max-width: 768px) {
-  .conv-text h2 { font-size: 26px; }
-  .conv-text p { font-size: 15px; }
+  .conv-text h2 { font-size: 24px; margin-bottom: 10px; line-height: 1.1; }
+  .conv-text p { font-size: 14px; line-height: 1.5; }
+  .conv-scroll-hint { margin-top: 18px; padding: 7px 12px; font-size: 12px; }
   .conv-stage { height: 360vh; }
-  .conv-phone { width: min(260px, calc((100vh - 180px) * 9 / 19.5)); }
+  /* Teléfono más chico en móvil para que caja-sticky (100svh - 72) no
+     tenga que centrar contenido más alto que ella misma y clipearlo. */
+  .conv-phone { width: min(220px, calc((100svh - 300px) * 9 / 19.5)); }
+  .conv-grid { gap: 22px; }
   .wa-bubble { font-size: 11.5px; }
 }
 
 @media (max-width: 480px) {
-  .conv-grid { padding: 0 16px; gap: 24px; }
+  .conv-grid { padding: 0 16px; gap: 20px; }
   .conv-stage { height: 340vh; }
-  .conv-phone { width: min(240px, calc((100vh - 180px) * 9 / 19.5)); padding: 7px; border-radius: 48px; }
+  .conv-phone { width: min(200px, calc((100svh - 300px) * 9 / 19.5)); padding: 7px; border-radius: 48px; }
   .phone-screen { border-radius: 42px; }
   .phone-frame-inner { border-radius: 42px; inset: 7px; }
   .phone-glare, .phone-glare-2 { border-radius: 42px; }
-  .dynamic-island { width: 100px; height: 28px; top: 8px; }
-  .home-indicator { width: 110px; height: 3.5px; }
+  .dynamic-island { width: 90px; height: 26px; top: 7px; }
+  .home-indicator { width: 100px; height: 3.5px; }
+  .conv-text h2 { font-size: 22px; }
+  .conv-text p { font-size: 13.5px; }
+  .conv-scroll-hint { margin-top: 14px; font-size: 11px; padding: 6px 11px; }
 }
 
 /* Landscape en móvil: viewports muy bajos (menos de 560px de alto).
@@ -2413,11 +2425,11 @@ input {
    consumir pantallas enteras de scroll con la animación. */
 @media (max-height: 560px) and (orientation: landscape) {
   .conv-stage { height: 280vh; }
-  .conv-sticky { top: 60px; height: calc(100vh - 60px); padding: 10px 0; }
-  .conv-phone { width: min(220px, calc((100vh - 100px) * 9 / 19.5)); }
-  .conv-text h2 { font-size: 22px; }
-  .conv-text p { font-size: 13px; }
-  .conv-grid { gap: 20px; }
+  .conv-sticky { top: 60px; height: calc(100svh - 60px); padding: 10px 0; }
+  .conv-phone { width: min(200px, calc((100svh - 90px) * 9 / 19.5)); }
+  .conv-text h2 { font-size: 20px; }
+  .conv-text p { font-size: 12.5px; }
+  .conv-grid { gap: 16px; }
 }
 
 /* ========================================
