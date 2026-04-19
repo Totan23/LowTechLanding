@@ -19,12 +19,107 @@ document.addEventListener('DOMContentLoaded', () => {
   initPricingToggle();
   initChatbot();
   initFaq();
+  initConversationDemo();
   // Fire-and-forget: embeddings load in background; Fuse serves until ready.
   initSmartContext().catch((e) => {
     console.warn('[Lowtech bot] smart context failed:', e);
     SmartContext.error = e;
   });
 });
+
+/* --------------------------------------------
+   CONVERSATION DEMO — scroll-linked reveal
+   Mapea el progreso de scroll dentro de la
+   sección (0→1) a la visibilidad de cada
+   mensaje y typing indicator, con fade fluido.
+-------------------------------------------- */
+function initConversationDemo() {
+  const section = document.querySelector('.conv-demo');
+  if (!section) return;
+
+  const stage = section.querySelector('.conv-stage');
+  const chatArea = section.querySelector('.wa-chat-area');
+  const messages = Array.from(section.querySelectorAll('[data-reveal]'));
+  const typings = Array.from(section.querySelectorAll('[data-typing-from]'));
+
+  if (!stage || !chatArea || messages.length === 0) return;
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    messages.forEach((m) => {
+      m.style.opacity = 1;
+      m.style.transform = 'none';
+    });
+    return;
+  }
+
+  // Each message is revealed over a small scroll window so it fades in
+  // smoothly rather than popping. Adjust FADE for tighter/looser transitions.
+  const FADE = 0.035;
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const smooth = (t) => t * t * (3 - 2 * t); // smoothstep for nicer curve
+
+  let ticking = false;
+
+  const render = () => {
+    const rect = stage.getBoundingClientRect();
+    const scrollable = Math.max(1, rect.height - window.innerHeight);
+    const progress = clamp(-rect.top / scrollable, 0, 1);
+
+    // 1. Messages: cada uno colapsa a max-height 0 si aún no está revelado,
+    //    así no ocupa espacio y no empuja el scroll innecesariamente.
+    //    Una vez su scroll-progress pasa el umbral, expande a 150px y hace
+    //    fade-in con opacity + translateY.
+    messages.forEach((el) => {
+      const start = parseFloat(el.dataset.reveal);
+      if (progress < start) {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        el.style.maxHeight = '0px';
+        return;
+      }
+      const p = smooth(clamp((progress - start) / FADE, 0, 1));
+      el.style.opacity = String(p);
+      el.style.transform = `translateY(${(1 - p) * 8}px)`;
+      el.style.maxHeight = '150px';
+    });
+
+    // 2. Typing indicators: visible only inside their [from, to] window.
+    //    Toggle class (not style) so CSS can collapse max-height and avoid
+    //    reserving space when hidden.
+    typings.forEach((el) => {
+      const from = parseFloat(el.dataset.typingFrom);
+      const to = parseFloat(el.dataset.typingTo);
+      const visible = progress >= from && progress < to;
+      el.classList.toggle('typing-on', visible);
+    });
+
+    // 3. Auto-scroll SOLO cuando el contenido excede el área visible. Mientras
+    //    quepan todos los mensajes, el scroll se queda en 0 y el HOY se ve
+    //    natural al comienzo del chat.
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      if (chatArea.scrollHeight > chatArea.clientHeight + 2) {
+        chatArea.scrollTop = chatArea.scrollHeight;
+      } else {
+        chatArea.scrollTop = 0;
+      }
+    }
+
+    ticking = false;
+  };
+
+  const onScroll = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(render);
+      ticking = true;
+    }
+  };
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+  render();
+}
 
 /* --------------------------------------------
    SMART CONTEXT — Transformers.js + lowtech.md
@@ -740,6 +835,7 @@ function initChatbot() {
     container.appendChild(msg);
     messageCount++;
     scrollBottom();
+    return msg;
   };
 
   // Chips de acción (scroll). Mapa explícito de "etiqueta normalizada" → id de sección.
@@ -826,17 +922,47 @@ function initChatbot() {
   const delay = (min = 800, max = 1200) =>
     new Promise((res) => setTimeout(res, Math.random() * (max - min) + min));
 
+  // Debug mode: if URL has ?debug=1, every bot message shows a small badge
+  // with the layer that produced it (llm | smart | fuse | regex | sensitive).
+  const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+
+  const sourceLabel = (id) => {
+    if (!id) return { label: 'fallback', kind: 'fallback' };
+    if (id === '__sensitive') return { label: 'seguridad (regex)', kind: 'security' };
+    if (id === 'llm') return { label: 'LLM (OpenRouter)', kind: 'llm' };
+    if (id.startsWith('smart:')) return { label: 'embeddings locales', kind: 'smart' };
+    if (id.startsWith('regex:')) return { label: 'regex', kind: 'regex' };
+    // KB hits use their plain id (precio, demo, etc.)
+    return { label: 'Fuse (KB local)', kind: 'fuse' };
+  };
+
   const sendBotSequence = async (entry) => {
     isBotTyping = true;
     sendBtn.disabled = true;
     removeChips();
 
     const payload = entry && entry.answer ? entry.answer : entry || fallback;
+    const id = (entry && entry.id) || 'fallback';
+    const src = sourceLabel(id);
+
+    // Always log to DevTools so you can inspect prod behavior without toggling UI.
+    console.info(
+      `%c[Lowtech bot]%c answered via ${src.label} (id="${id}")`,
+      'color:#185FA5;font-weight:700',
+      'color:inherit'
+    );
+
     for (const text of payload.messages) {
       showTyping();
       await delay();
       hideTyping();
-      addMessage(text, 'bot');
+      const msgEl = addMessage(text, 'bot');
+      if (DEBUG && msgEl) {
+        const badge = document.createElement('span');
+        badge.className = 'msg-source src-' + src.kind;
+        badge.textContent = 'vía ' + src.label;
+        msgEl.appendChild(badge);
+      }
     }
 
     if (payload.chips && payload.chips.length) {

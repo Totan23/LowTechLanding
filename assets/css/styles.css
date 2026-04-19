@@ -1034,6 +1034,28 @@ input {
   opacity: 0.7;
 }
 
+/* Debug source badge — only rendered when the URL has ?debug=1 */
+.msg-source {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--gray-100);
+  color: var(--gray-600);
+  border: 1px solid var(--gray-200);
+}
+
+.msg-source.src-llm { background: #E8F3FF; color: #0F4A85; border-color: #B5D4F4; }
+.msg-source.src-smart { background: #FDF3E3; color: #B8650F; border-color: rgba(239, 159, 39, 0.35); }
+.msg-source.src-fuse { background: #E7F7ED; color: #106A3B; border-color: #B6E4C3; }
+.msg-source.src-security { background: #FDEBE8; color: #9A2B1F; border-color: #F5B8B0; }
+.msg-source.src-regex { background: #EFE8FF; color: #4B2BA3; border-color: #D0C3F7; }
+.msg-source.src-fallback { background: var(--gray-100); color: var(--gray-600); }
+
 .msg.user .msg-time { text-align: right; }
 
 .typing {
@@ -1727,6 +1749,678 @@ input {
 }
 
 /* ========================================
+   CONVERSATION DEMO (scroll-driven)
+======================================== */
+.conv-demo {
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(24, 95, 165, 0.06), transparent 50%),
+    radial-gradient(circle at 90% 100%, rgba(239, 159, 39, 0.05), transparent 50%),
+    linear-gradient(180deg, var(--white) 0%, var(--gray-50) 100%);
+}
+
+.conv-stage {
+  height: 420vh;
+  position: relative;
+}
+
+.conv-sticky {
+  position: sticky;
+  top: 72px; /* arranca debajo del navbar sticky para no quedar tapado */
+  height: calc(100vh - 72px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 16px 0;
+}
+
+.conv-grid {
+  max-width: var(--max-width);
+  width: 100%;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.conv-text {
+  text-align: left;
+}
+
+.conv-text h2 {
+  font-size: clamp(28px, 4vw, 44px);
+  margin-bottom: 16px;
+  line-height: 1.1;
+}
+
+.conv-text p {
+  font-size: 17px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 420px;
+}
+
+.conv-scroll-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  padding: 8px 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.conv-scroll-hint svg {
+  animation: scrollHintPulse 1.8s ease-in-out infinite;
+  color: var(--amber);
+}
+
+@keyframes scrollHintPulse {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(4px); opacity: 1; }
+}
+
+/* --- Phone mockup --- */
+.conv-phone-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- iPhone 15 Pro mockup (metallic frame, Dynamic Island, glare) --- */
+.conv-phone {
+  position: relative;
+  /* En viewports bajos (laptops con poco alto), el ancho se reduce para que el
+     teléfono quepa completo en calc(100vh - navbar - paddings) sin cortarse. */
+  width: min(320px, calc((100vh - 140px) * 9 / 19.5));
+  aspect-ratio: 9 / 19.5;
+  /* marco de acero inoxidable con brillos laterales */
+  background:
+    linear-gradient(
+      105deg,
+      #2a2a2c 0%,
+      #4a4a4c 4%,
+      #1c1c1e 10%,
+      #2a2a2c 24%,
+      #3a3a3c 50%,
+      #2a2a2c 76%,
+      #1c1c1e 90%,
+      #4a4a4c 96%,
+      #2a2a2c 100%
+    );
+  border-radius: 58px;
+  padding: 8px;
+  box-shadow:
+    /* contornos sutiles del frame */
+    inset 0 0 0 2px rgba(255, 255, 255, 0.05),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    inset 0 3px 6px rgba(255, 255, 255, 0.08),
+    /* capas de sombra para profundidad */
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 6px 12px rgba(0, 0, 0, 0.1),
+    0 24px 48px -12px rgba(24, 95, 165, 0.25),
+    0 48px 80px -20px rgba(0, 0, 0, 0.35);
+}
+
+/* Bisel negro interior que rodea la pantalla */
+.phone-frame-inner {
+  position: absolute;
+  inset: 8px;
+  background: #000;
+  border-radius: 50px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* --- Botones físicos laterales --- */
+.phone-btn {
+  position: absolute;
+  background: linear-gradient(
+    180deg,
+    #2a2a2c 0%,
+    #4a4a4c 20%,
+    #1c1c1e 50%,
+    #4a4a4c 80%,
+    #2a2a2c 100%
+  );
+  border-radius: 1px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+/* Izquierda: mute switch + volume up + volume down */
+.phone-btn.btn-mute { left: -3px; top: 100px; width: 3px; height: 28px; border-radius: 1px 0 0 1px; }
+.phone-btn.btn-vol-up { left: -3px; top: 150px; width: 3px; height: 44px; border-radius: 1px 0 0 1px; }
+.phone-btn.btn-vol-down { left: -3px; top: 204px; width: 3px; height: 44px; border-radius: 1px 0 0 1px; }
+
+/* Derecha: power / side button */
+.phone-btn.btn-power { right: -3px; top: 160px; width: 3px; height: 70px; border-radius: 0 1px 1px 0; }
+
+/* --- Pantalla --- */
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: #ECE5DD;
+  border-radius: 50px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Dynamic Island (cápsula negra flotante con sensores) --- */
+.dynamic-island {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 118px;
+  height: 34px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  box-shadow:
+    inset 0 -1px 1px rgba(255, 255, 255, 0.04),
+    0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Sensor Face ID izquierdo */
+.di-sensor {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #1e1e2e 0%, #000 70%);
+  box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+/* Cámara derecha */
+.di-camera {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #1a1a2a 0%, #050510 60%, #000 100%);
+  box-shadow:
+    inset 0 0 2px rgba(80, 120, 200, 0.3),
+    inset 0 0 0 1px rgba(30, 30, 50, 0.8);
+  position: relative;
+}
+
+/* Punto de luz brillante en la cámara */
+.di-camera::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: rgba(180, 210, 255, 0.45);
+}
+
+/* --- Glare diagonal sobre el vidrio --- */
+.phone-glare {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+  z-index: 9;
+  border-radius: 50px;
+}
+
+.phone-glare-2 {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 15% 12%,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 25%,
+    transparent 50%
+  );
+  pointer-events: none;
+  z-index: 8;
+  border-radius: 50px;
+}
+
+/* --- Home indicator (barra inferior iOS) --- */
+.home-indicator {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 128px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.42);
+  border-radius: 3px;
+  z-index: 7;
+}
+
+/* --- Phone status bar --- */
+.phone-status {
+  height: 46px;
+  padding: 14px 20px 6px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  background: #008069;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.phone-status-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  opacity: 0.95;
+}
+
+.phone-battery {
+  width: 20px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 1px;
+  position: relative;
+  display: inline-flex;
+}
+
+.phone-battery::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 0 1px 1px 0;
+}
+
+.phone-battery-fill {
+  width: 80%;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+/* --- WhatsApp header --- */
+.wa-chat-header {
+  background: #008069;
+  color: var(--white);
+  padding: 6px 10px 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wa-back {
+  padding: 4px;
+  opacity: 0.9;
+}
+
+.wa-contact-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wa-contact-info {
+  flex: 1;
+  line-height: 1.1;
+  min-width: 0;
+}
+
+.wa-contact-name {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-contact-status {
+  font-size: 10px;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
+.wa-header-icons {
+  display: inline-flex;
+  gap: 10px;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+/* --- Chat area --- */
+.wa-chat-area {
+  flex: 1;
+  padding: 14px 7px 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background:
+    /* Subtle WhatsApp-style doodle texture via SVG data URI */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' opacity='0.08'><circle cx='10' cy='10' r='1.5' fill='%23000'/><circle cx='40' cy='25' r='1' fill='%23000'/><path d='M55 15 Q60 10 65 15' stroke='%23000' stroke-width='1' fill='none' opacity='0.5'/><circle cx='25' cy='55' r='1' fill='%23000'/><path d='M55 60 l4 4 M59 60 l-4 4' stroke='%23000' stroke-width='0.8' opacity='0.5'/><circle cx='70' cy='70' r='1.5' fill='%23000'/></svg>"),
+    #EFEAE2;
+  position: relative;
+}
+
+/* Overlay con degradado en la parte superior: cuando los mensajes salen
+   por arriba, se desvanecen detrás de este gradiente en vez de cortarse. */
+.wa-chat-area::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  background: linear-gradient(180deg, #EFEAE2 0%, rgba(239, 234, 226, 0.75) 55%, rgba(239, 234, 226, 0) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.wa-date {
+  /* Pinneado arriba del chat (como WhatsApp real). No se mueve aunque el
+     auto-scroll reacomode los mensajes por el typing collapse/expand. */
+  position: sticky;
+  top: 4px;
+  z-index: 3;
+  align-self: center;
+  padding: 4px 10px;
+  background: rgba(225, 245, 254, 0.95);
+  color: rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.wa-msg {
+  display: flex;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease, max-height 0.35s ease;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.wa-msg-user { justify-content: flex-end; }
+.wa-msg-bot { justify-content: flex-start; }
+
+.wa-bubble {
+  max-width: 78%;
+  padding: 5px 8px 6px;
+  border-radius: 7.5px;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+  position: relative;
+  color: #111B21;
+  word-wrap: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Plus Jakarta Sans', sans-serif;
+}
+
+/* --- USER (sent) bubble: green, tail top-right --- */
+.wa-msg-user .wa-bubble {
+  background: #D9FDD3;
+  border-top-right-radius: 0;
+}
+
+.wa-msg-user .wa-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -7px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #D9FDD3;
+  border-right: 8px solid transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.05));
+}
+
+/* --- BOT (received) bubble: white, tail top-left --- */
+.wa-msg-bot .wa-bubble {
+  background: #FFFFFF;
+  border-top-left-radius: 0;
+}
+
+.wa-msg-bot .wa-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #FFFFFF;
+  border-left: 8px solid transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.05));
+}
+
+/* --- Text + meta (time + read ticks) inside bubble --- */
+.wa-text {
+  display: inline;
+}
+
+.wa-meta {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  margin-top: 4px;
+  font-size: 9.5px;
+  color: rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.wa-time {
+  font-weight: 400;
+}
+
+.wa-tick {
+  width: 15px;
+  height: 11px;
+  color: #53BDEB;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* --- Typing indicator ---
+   Usa max-height + opacity + margin así cuando NO está activo ocupa 0px
+   y no empuja los mensajes. Smooth transition al aparecer/desaparecer. */
+.wa-typing {
+  display: flex;
+  justify-content: flex-start;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 0.25s ease, max-height 0.3s ease;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.wa-typing.typing-on {
+  opacity: 1;
+  max-height: 36px;
+}
+
+.wa-typing-bubble {
+  background: var(--white);
+  padding: 8px 12px;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  min-height: 10px;
+  border-bottom-left-radius: 2px;
+}
+
+.wa-typing-bubble span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #9aa0a6;
+  animation: waTypingDot 1.2s ease-in-out infinite;
+  opacity: 0.4;
+}
+
+.wa-typing-bubble span:nth-child(2) { animation-delay: 0.15s; }
+.wa-typing-bubble span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes waTypingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* --- Input bar --- */
+.wa-input-bar {
+  background: #F0F2F5;
+  padding: 6px 8px 14px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wa-input-plus {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: #8696A0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wa-input-pill {
+  flex: 1;
+  background: var(--white);
+  border-radius: 20px;
+  padding: 7px 10px 7px 14px;
+  font-size: 11px;
+  color: #8696A0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.wa-input-placeholder {
+  flex: 1;
+}
+
+.wa-input-camera {
+  color: #8696A0;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.wa-input-mic {
+  width: 34px;
+  height: 34px;
+  background: #008069;
+  border-radius: 50%;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* --- Reduced-motion fallback: show all messages, no typing --- */
+@media (prefers-reduced-motion: reduce) {
+  .wa-msg { opacity: 1 !important; transform: none !important; }
+  .wa-typing { display: none !important; }
+  .conv-stage { height: auto; }
+  .conv-sticky { position: static; height: auto; padding: 64px 0; }
+  .conv-scroll-hint svg { animation: none; }
+}
+
+/* --- Responsive --- */
+@media (max-width: 960px) {
+  .conv-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 0 24px;
+  }
+  .conv-text { text-align: center; max-width: 520px; margin: 0 auto; }
+  .conv-text p { margin: 0 auto; }
+  .conv-stage { height: 380vh; }
+  .conv-phone { width: min(280px, calc((100vh - 160px) * 9 / 19.5)); }
+}
+
+@media (max-width: 768px) {
+  .conv-text h2 { font-size: 26px; }
+  .conv-text p { font-size: 15px; }
+  .conv-stage { height: 360vh; }
+  .conv-phone { width: min(260px, calc((100vh - 180px) * 9 / 19.5)); }
+  .wa-bubble { font-size: 11.5px; }
+}
+
+@media (max-width: 480px) {
+  .conv-grid { padding: 0 16px; gap: 24px; }
+  .conv-stage { height: 340vh; }
+  .conv-phone { width: min(240px, calc((100vh - 180px) * 9 / 19.5)); padding: 7px; border-radius: 48px; }
+  .phone-screen { border-radius: 42px; }
+  .phone-frame-inner { border-radius: 42px; inset: 7px; }
+  .phone-glare, .phone-glare-2 { border-radius: 42px; }
+  .dynamic-island { width: 100px; height: 28px; top: 8px; }
+  .home-indicator { width: 110px; height: 3.5px; }
+}
+
+/* Landscape en móvil: viewports muy bajos (menos de 560px de alto).
+   El teléfono se reduce más agresivo y la stage se acorta para no
+   consumir pantallas enteras de scroll con la animación. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .conv-stage { height: 280vh; }
+  .conv-sticky { top: 60px; height: calc(100vh - 60px); padding: 10px 0; }
+  .conv-phone { width: min(220px, calc((100vh - 100px) * 9 / 19.5)); }
+  .conv-text h2 { font-size: 22px; }
+  .conv-text p { font-size: 13px; }
+  .conv-grid { gap: 20px; }
+}
+
+/* ========================================
    TEAM SECTION
 ======================================== */
 .team {
@@ -1962,7 +2656,7 @@ input {
 /* ========================================
    RESPONSIVE
 ======================================== */
-@media (max-width: 1024px) {
+@media (max-width: 1100px) {
   .nav-links,
   .nav-actions .btn-ghost {
     display: none;
@@ -2026,6 +2720,16 @@ input {
 @media (max-width: 768px) {
   .section { padding: 72px 0; }
 
+  /* Stats: baja a 2 columnas antes del salto final para no quedar cramped */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+
+  /* Marquee intermedio — entre desktop (22px) y mobile (15px) */
+  .marquee-item { font-size: 18px; }
+  .marquee-track { gap: 48px; }
+
+  /* FAQ summary intermedio */
+  .faq-item summary { gap: 12px; padding: 18px 20px; }
+
   .hero { padding: 48px 0 64px; }
   .hero-ctas { flex-direction: column; align-items: center; gap: 10px; }
   .hero-ctas .btn { width: 100%; max-width: 320px; }
@@ -2069,4 +2773,17 @@ input {
   .hero-stats-inline { font-size: 12.5px; gap: 6px; }
   .team-avatar { width: 72px; height: 72px; font-size: 24px; }
   .popular-badge { font-size: 11px; padding: 5px 12px; }
+
+  /* Marquee con menos alto — logos no empujan layout */
+  .marquee-item { font-size: 15px; gap: 8px; }
+  .marquee-item svg { width: 22px; height: 22px; }
+  .marquee-track { gap: 40px; }
+
+  /* FAQ summary con menos gap y icono más pequeño para textos largos */
+  .faq-item summary { gap: 10px; padding: 16px 18px; font-size: 15px; }
+  .faq-icon { width: 26px; height: 26px; }
+  .faq-answer { padding: 0 18px 18px; font-size: 14px; }
+
+  /* Nav toggle más grande para mejor touch target */
+  .nav-toggle { width: 44px; height: 44px; }
 }
