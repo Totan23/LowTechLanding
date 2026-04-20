@@ -2395,29 +2395,42 @@ input {
 }
 
 @media (max-width: 768px) {
-  .conv-text h2 { font-size: 24px; margin-bottom: 10px; line-height: 1.1; }
-  .conv-text p { font-size: 14px; line-height: 1.5; }
-  .conv-scroll-hint { margin-top: 18px; padding: 7px 12px; font-size: 12px; }
-  .conv-stage { height: 360vh; }
-  /* Teléfono más chico en móvil para que caja-sticky (100svh - 72) no
-     tenga que centrar contenido más alto que ella misma y clipearlo. */
-  .conv-phone { width: min(220px, calc((100svh - 300px) * 9 / 19.5)); }
-  .conv-grid { gap: 22px; }
-  .wa-bubble { font-size: 11.5px; }
+  .conv-text h2 { font-size: 22px; margin-bottom: 8px; line-height: 1.1; }
+  .conv-text p { font-size: 13.5px; line-height: 1.45; }
+  .conv-scroll-hint { margin-top: 14px; padding: 6px 11px; font-size: 11px; }
+  .conv-stage { height: 320vh; }
+  /* Tamaño fijo pequeño — garantizado que cabe en cualquier móvil con
+     Safari chrome visible sin necesidad de centrar y clipear. */
+  .conv-phone { width: 210px; }
+  .conv-grid { gap: 18px; }
+  .wa-bubble { font-size: 11px; }
+  .wa-contact-name { font-size: 12px; }
 }
 
 @media (max-width: 480px) {
-  .conv-grid { padding: 0 16px; gap: 20px; }
-  .conv-stage { height: 340vh; }
-  .conv-phone { width: min(200px, calc((100svh - 300px) * 9 / 19.5)); padding: 7px; border-radius: 48px; }
-  .phone-screen { border-radius: 42px; }
-  .phone-frame-inner { border-radius: 42px; inset: 7px; }
-  .phone-glare, .phone-glare-2 { border-radius: 42px; }
-  .dynamic-island { width: 90px; height: 26px; top: 7px; }
-  .home-indicator { width: 100px; height: 3.5px; }
-  .conv-text h2 { font-size: 22px; }
-  .conv-text p { font-size: 13.5px; }
-  .conv-scroll-hint { margin-top: 14px; font-size: 11px; padding: 6px 11px; }
+  .conv-grid { padding: 0 16px; gap: 16px; }
+  .conv-stage { height: 300vh; }
+  .conv-phone { width: 190px; padding: 6px; border-radius: 42px; }
+  .phone-screen { border-radius: 36px; }
+  .phone-frame-inner { border-radius: 36px; inset: 6px; }
+  .phone-glare, .phone-glare-2 { border-radius: 36px; }
+  .dynamic-island { width: 80px; height: 24px; top: 6px; border-radius: 14px; }
+  .home-indicator { width: 90px; height: 3px; bottom: 5px; }
+  .conv-text h2 { font-size: 20px; line-height: 1.1; margin-bottom: 6px; }
+  .conv-text p { font-size: 13px; line-height: 1.4; }
+  .conv-scroll-hint { margin-top: 12px; font-size: 11px; padding: 5px 10px; }
+  .phone-status { height: 40px; padding: 12px 16px 4px 18px; font-size: 10px; }
+  .wa-chat-header { padding: 4px 8px 6px 6px; }
+  .wa-contact-avatar { width: 26px; height: 26px; }
+  .wa-contact-name { font-size: 11px; }
+  .wa-contact-status { font-size: 9px; }
+  .wa-bubble { font-size: 10.5px; padding: 4px 7px 5px; }
+  .wa-time { font-size: 8.5px; }
+  .wa-chat-area { padding: 10px 6px 4px; }
+  .wa-input-bar { padding: 4px 6px 10px; }
+  .wa-input-pill { font-size: 10px; padding: 5px 8px 5px 10px; }
+  .wa-input-mic { width: 28px; height: 28px; }
+  .wa-input-plus { width: 22px; height: 22px; }
 }
 
 /* Landscape en móvil: viewports muy bajos (menos de 560px de alto).
@@ -2699,23 +2712,48 @@ input {
 
   .nav-mobile a {
     display: block;
-    padding: 12px 0;
+    padding: 14px 0;
     font-size: 16px;
     font-weight: 500;
     color: var(--text);
     border-bottom: 1px solid var(--gray-100);
+    text-align: left;
   }
 
   .nav-mobile a:last-child { border-bottom: none; }
 
+  /* Los CTAs del menú hamburger se ven como el resto de enlaces:
+     texto simple, sin color de fondo ni borde, sólo una línea divisoria.
+     Así no "compiten" visualmente con los items del navbar (logo/toggle). */
   .nav-mobile .mobile-ctas {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding-top: 16px;
+    gap: 0;
+    padding-top: 0;
+    margin-top: 0;
   }
 
-  .nav-mobile .mobile-ctas .btn { width: 100%; }
+  .nav-mobile .mobile-ctas .btn {
+    width: 100%;
+    background: transparent !important;
+    color: var(--text) !important;
+    border: none;
+    border-bottom: 1px solid var(--gray-100) !important;
+    border-radius: 0;
+    padding: 14px 0;
+    font-size: 16px;
+    font-weight: 500;
+    justify-content: flex-start;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .nav-mobile .mobile-ctas .btn:hover {
+    color: var(--blue) !important;
+    background: transparent !important;
+  }
+
+  .nav-mobile .mobile-ctas .btn:last-child { border-bottom: none !important; }
 }
 
 @media (max-width: 960px) {
