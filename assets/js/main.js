@@ -1043,3 +1043,9 @@ function initFaq() {
     });
   });
 }
+
+/* --------------------------------------------
+   COPYRIGHT YEAR — se actualiza solo cada año
+-------------------------------------------- */
+const copyrightYearEl = document.getElementById('copyright-year');
+if (copyrightYearEl) copyrightYearEl.textContent = new Date().getFullYear();
