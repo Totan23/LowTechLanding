@@ -10,12 +10,41 @@ const SmartContext = {
   search: null // async (queryText) => chunk | null
 };
 
+// THEME — se aplica ANTES del primer render para evitar el flash de tema
+// incorrecto. Lee localStorage; si no hay preferencia, respeta
+// prefers-color-scheme del sistema.
+(() => {
+  const stored = localStorage.getItem('lowtech-theme');
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const theme = stored || (prefersDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+
+// En refresh siempre volver a Inicio: limpiar el hash residual de clicks
+// previos en el navbar y forzar scroll al top. Si el usuario llega desde
+// un link externo con #seccion, eso se respeta (no es 'reload').
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+(() => {
+  const nav = performance.getEntriesByType?.('navigation')?.[0];
+  const isReload = nav?.type === 'reload';
+  if (isReload && location.hash) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  if (isReload) {
+    window.scrollTo(0, 0);
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
   initNavbar();
   initMobileMenu();
   initRevealOnScroll();
   initStatsCounter();
   initActiveNav();
+  initNavIndicator();
+  initThemeToggle();
   initPricingToggle();
   initChatbot();
   initFaq();
@@ -379,11 +408,24 @@ function initActiveNav() {
 
   if (sections.length === 0) return;
 
-  const ANCHOR_OFFSET = 100; // nav height (72) + breathing room
+  const ANCHOR_OFFSET = 96; // nav height (68) + breathing room
   let currentId = null;
   let ticking = false;
+  let scrollLock = false;
+  let scrollLockTimer;
+
+  const setActive = (id) => {
+    if (id === currentId) return;
+    currentId = id;
+    const targetHref = '#' + id;
+    links.forEach((link) => {
+      link.classList.toggle('active', link.getAttribute('href') === targetHref);
+    });
+  };
 
   const update = () => {
+    if (scrollLock) { ticking = false; return; }
+
     const y = window.scrollY + ANCHOR_OFFSET;
 
     let active = sections[0];
@@ -397,13 +439,7 @@ function initActiveNav() {
       active = sections[sections.length - 1];
     }
 
-    if (active.id !== currentId) {
-      currentId = active.id;
-      const targetHref = '#' + active.id;
-      links.forEach((link) => {
-        link.classList.toggle('active', link.getAttribute('href') === targetHref);
-      });
-    }
+    setActive(active.id);
     ticking = false;
   };
 
@@ -414,9 +450,102 @@ function initActiveNav() {
     }
   };
 
+  // Lock scrollspy briefly when user clicks a nav link, so the indicator
+  // jumps directly to the target instead of "walking" through every
+  // intermediate section the smooth-scroll passes over.
+  links.forEach((link) => {
+    link.addEventListener('click', () => {
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const id = href.slice(1);
+      scrollLock = true;
+      setActive(id);
+      clearTimeout(scrollLockTimer);
+      scrollLockTimer = setTimeout(() => { scrollLock = false; }, 850);
+    });
+  });
+
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll, { passive: true });
   update(); // initial highlight on load
+}
+
+/* --------------------------------------------
+   THEME TOGGLE — botón con popover y switch.
+   Persiste en localStorage. Animación con
+   transition-class temporal para que el cambio
+   de colores sea fluido (sin re-flicker).
+-------------------------------------------- */
+function initThemeToggle() {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.classList.add('theme-transition');
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('lowtech-theme', next);
+    btn.setAttribute('aria-label', next === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    // Quitar la transition-class después de la animación para no
+    // aplicar transitions permanentes a TODO el DOM.
+    setTimeout(() => {
+      document.documentElement.classList.remove('theme-transition');
+    }, 900);
+  });
+}
+
+/* --------------------------------------------
+   NAV INDICATOR — sliding pill that follows the
+   active link, and snaps to hover with spring easing.
+-------------------------------------------- */
+function initNavIndicator() {
+  const nav = document.querySelector('.nav-links');
+  if (!nav) return;
+  const indicator = nav.querySelector('.nav-links-indicator');
+  const links = Array.from(nav.querySelectorAll('a'));
+  if (!indicator || links.length === 0) return;
+
+  const moveTo = (link) => {
+    if (!link) return;
+    const navRect = nav.getBoundingClientRect();
+    const r = link.getBoundingClientRect();
+    indicator.style.transform = `translateX(${r.left - navRect.left}px)`;
+    indicator.style.width = `${r.width}px`;
+    indicator.classList.add('is-visible');
+    // Marca qué link queda debajo del indicador para que el color
+    // blanco siga al pill, no a la clase .active de la scrollspy.
+    links.forEach((l) => l.classList.toggle('has-indicator', l === link));
+  };
+
+  const snapToActive = () => {
+    const active = links.find((l) => l.classList.contains('active'));
+    if (active) moveTo(active);
+    else {
+      indicator.classList.remove('is-visible');
+      links.forEach((l) => l.classList.remove('has-indicator'));
+    }
+  };
+
+  // Slide to hovered link
+  links.forEach((link) => {
+    link.addEventListener('mouseenter', () => moveTo(link));
+    link.addEventListener('focus', () => moveTo(link));
+  });
+  nav.addEventListener('mouseleave', snapToActive);
+
+  // React when scrollspy toggles .active on any link
+  const observer = new MutationObserver(snapToActive);
+  links.forEach((l) => observer.observe(l, { attributes: true, attributeFilter: ['class'] }));
+
+  // Realign on resize / orientation / font load
+  window.addEventListener('resize', snapToActive, { passive: true });
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(snapToActive);
+  }
+
+  // Initial paint — wait one frame so layout is settled
+  requestAnimationFrame(snapToActive);
 }
 
 /* --------------------------------------------
@@ -595,7 +724,7 @@ function initChatbot() {
       answer: {
         messages: [
           'Somos Lowtech, un equipo pequeño de venezolanos 🇻🇪',
-          'Puedes ver al equipo en la sección "Nuestro equipo" más arriba.'
+          'Nos enfocamos en chatbots con IA, automatizaciones, apps y webs para empresas locales.'
         ]
       }
     },
@@ -756,7 +885,10 @@ function initChatbot() {
 
     // 2. Pricing gate — always redirect, never give numbers. Saves an API call
     //    and guarantees the behavior even if the model hallucinates.
-    if (/(cuesta|precio|plan|tarifa|cotizac|presupuesto|cuanto|cu[aá]nto vale)/.test(t)) {
+    //    "cu[aá]nto" sólo dispara si va acompañado de un verbo monetario;
+    //    así "cuánto tarda" / "cuánto demora" pasan al LLM en vez de quedarse
+    //    pegadas en la respuesta de precios.
+    if (/(cuesta|precio|tarifa|cotizac|presupuesto|cu[aá]nto (vale|cobran|sale|cuesta|pagan|pagar[ií]a))/.test(t)) {
       return KB.find((x) => x.id === 'precio');
     }
 
@@ -857,8 +989,6 @@ function initChatbot() {
     'ver que sí hacen': 'chatbot',
     'probar el chatbot': 'demo',
     'ver precios': 'final-cta',
-    'ver equipo': 'equipo',
-    'ver el equipo': 'equipo',
     'ver preguntas frecuentes': 'faq',
     'ver faq': 'faq'
   };
