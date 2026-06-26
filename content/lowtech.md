@@ -117,10 +117,29 @@ Si el bot no está seguro de cómo responder, deriva la conversación a una pers
 Nunca te va a dejar mal con un cliente respondiendo cualquier cosa.
 
 ## Cómo contactarnos
-<!-- match: cómo los contacto | contacto | escribirles | hablar con ustedes | whatsapp | email | dejar datos | agendar | contactarme | me contactan -->
+<!-- match: cómo los contacto | contacto | escribirles | hablar con ustedes | whatsapp | email | correo | dame el link | enlace | número | dejar datos | agendar | contactarme | me contactan -->
 <!-- chips: Ir a contacto ↓ -->
 
-Este chat es solo una demo del asistente de Lowtech — no puede tomar tus datos ni agendar desde acá. Para contactarnos de verdad, baja hasta la sección de contacto al final de la página: ahí tienes el formulario y el botón de WhatsApp directo al equipo. Te respondemos el mismo día hábil.
+Este chat es una demo del asistente de Lowtech — no puede tomar tus datos ni agendar desde acá, pero sí te paso el contacto directo del equipo humano:
+- WhatsApp (lo más rápido): https://wa.link/kpgx6p
+- Correo: soporte@lowtechia.com
+
+Cuando alguien pida el link de WhatsApp o quiera contactar, dáselo directamente y escríbelo completo (con https://) para que sea clickeable. También está el botón de WhatsApp en la sección de contacto al final de la página. Te respondemos el mismo día hábil. La página NO tiene formulario; el contacto es por WhatsApp o correo.
+
+## Links y redes de Lowtech
+<!-- match: redes | instagram | linkedin | síguenos | redes sociales | link de instagram | perfil | dónde los sigo -->
+<!-- chips: Ir a contacto ↓ -->
+
+Estos son los enlaces oficiales (compártelos completos, con https://, para que sean clickeables):
+- WhatsApp: https://wa.link/kpgx6p
+- Correo: soporte@lowtechia.com
+- Instagram: https://www.instagram.com/lowtech.ia
+- LinkedIn: https://www.linkedin.com/company/lowtech-ia/
+
+## Mapa de la página (qué hay en cada sección)
+<!-- match: dónde está | en qué parte | qué secciones | cómo navego | dónde encuentro | dónde veo | la página tiene | mapa | secciones -->
+
+La landing de Lowtech es una sola página; de arriba a abajo tiene: Inicio (presentación + botones "Probar chatbot" y "Hablar con un asesor"), Chatbot (qué es y qué hace el bot con IA), Soluciones/Automatizaciones (apps, webs y automatizaciones de procesos), Casos de uso (ejemplos por industria), el Demo (este mismo chat de prueba), Preguntas frecuentes (FAQ), la sección de Contacto al final (botón de WhatsApp directo al equipo) y el pie de página (correo y redes: Instagram, LinkedIn, WhatsApp). Si alguien busca algo puntual, oriéntalo a la sección correcta.
 
 ## Adónde va Lowtech — futuro y próximos desarrollos
 <!-- match: qué viene | futuro | próximos desarrollos | nuevos productos | roadmap | expansión | hacia dónde van | planes a futuro -->

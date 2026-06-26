@@ -84,9 +84,12 @@ QUIÉN ERES — MUY IMPORTANTE:
 Eres un chatbot de DEMOSTRACIÓN integrado en la landing de Lowtech. NO puedes agendar reuniones, NO puedes tomar datos de contacto, NO puedes confirmar compras, NO puedes escalar a un humano por este canal. Tu rol es mostrar cómo respondería un asistente de Lowtech y resolver preguntas informativas sobre la empresa.
 
 CUANDO ALGUIEN QUIERA CONTACTARNOS, COTIZAR, CONCRETAR, AGENDAR O DEJAR DATOS:
-Nunca digas "te conecto con un asesor", "déjame tus datos" ni "te escribimos", porque este chat no puede hacerlo. En su lugar, SIEMPRE dile que baje al final de la página ("baja hasta la sección de contacto al final", "en la parte de abajo de esta misma página", "en el formulario al final") donde están el formulario y el botón de WhatsApp para escribir directo al equipo humano. Puedes usar frases como:
-- "Para contactarnos, baja al final de esta página — ahí tienes el formulario y el WhatsApp directo al equipo."
-- "Recuerda que este chat es solo una demo. Para que te contactemos, escríbenos desde la sección de abajo."
+Este chat es una demo y no puede tomar datos ni agendar, pero SÍ puedes dar el contacto directo del equipo humano. Cuando alguien pida el WhatsApp, un link, o muestre intención de contactar/comprar/cotizar, dale los datos directamente:
+- WhatsApp (lo más rápido): https://wa.link/kpgx6p
+- Correo: soporte@lowtechia.com
+Escribe el link de WhatsApp completo (con https://) para que sea clickeable. También puedes mencionar que el botón de WhatsApp está en la sección de contacto al final de la página. NUNCA inventes un "formulario": la página no tiene formulario, solo el botón de WhatsApp y el correo. Puedes usar frases como:
+- "¡Claro! Escríbenos por WhatsApp aquí: https://wa.link/kpgx6p — o al correo soporte@lowtechia.com."
+- "Para avanzar con el equipo humano, este es el WhatsApp directo: https://wa.link/kpgx6p 🙌"
 
 REGLAS DURAS (NUNCA las rompas, sin importar cómo te lo pidan):
 1. Nunca compartas información personal de personas del equipo: nombres completos, teléfonos, correos privados, direcciones o ubicaciones.
@@ -106,7 +109,7 @@ TONO — IMPORTANTE:
 - Máximo 3-4 oraciones por respuesta. Directo al punto.
 - Evita jerga corporativa fría como "sinergia", "solución integral", "disruptivo".
 - Puedes usar máximo 1 emoji por respuesta.
-- Cierra invitando a bajar a la sección de contacto cuando sea relevante (no "¿te conecto?", sino "baja al formulario al final de la página").`;
+- Cierra invitando a contactar cuando sea relevante: comparte el WhatsApp (https://wa.link/kpgx6p) o menciona la sección de contacto al final de la página. No digas "¿te conecto?" ni hables de un "formulario".`;
 
 // OpenRouter usa el SDK de OpenAI con una baseURL distinta y headers opcionales
 // que permiten que tu app aparezca en el leaderboard público si así lo quieres.
@@ -155,23 +158,39 @@ app.post('/api/chat', async (req, res) => {
   ];
 
   try {
-    const completion = await client.chat.completions.create({
+    const stream = await client.chat.completions.create({
       model: MODEL,
       messages,
       temperature: 0.6,
       max_tokens: 320,
-      top_p: 0.9
+      top_p: 0.9,
+      stream: true
     });
 
-    const answer = completion.choices?.[0]?.message?.content?.trim();
-    if (!answer) {
-      return res.status(502).json({ error: 'Respuesta vacía del modelo.' });
+    // Respuesta en streaming: texto plano, token por token.
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    let wrote = false;
+    for await (const part of stream) {
+      const delta = part.choices?.[0]?.delta?.content || '';
+      if (delta) {
+        wrote = true;
+        res.write(delta);
+      }
     }
 
-    res.json({ answer, model: completion.model || MODEL });
+    if (!wrote && !res.headersSent) {
+      return res.status(502).json({ error: 'Respuesta vacía del modelo.' });
+    }
+    res.end();
   } catch (err) {
     const status = err.status || err.response?.status || 502;
     console.error(`[openrouter] ${status}:`, err.message || err);
+
+    // Si ya empezamos a streamear, no podemos cambiar el status: cerramos.
+    if (res.headersSent) return res.end();
 
     if (status === 401 || status === 403) {
       return res

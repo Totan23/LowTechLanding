@@ -691,6 +691,14 @@ input {
   font-style: italic;
   font-weight: 600;
   letter-spacing: -0.03em;
+  /* Sin text-shadow blanco: lavaba el gradient. Drop-shadow respeta la
+     forma de las letras y mantiene la saturación de los botones. */
+  text-shadow: none;
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.18));
+}
+
+[data-theme="dark"] .hero h1 .accent {
+  filter: drop-shadow(0 1px 8px rgba(0, 0, 0, 0.45));
 }
 
 .hero-sub {
@@ -3918,3 +3926,28 @@ input {
   html.theme-transition,
   html.theme-transition * { transition: none !important; }
 }
+
+/* === Chatbot: cursor de streaming (respuesta del LLM en vivo) === */
+.msg.bot.streaming > span:first-child::after {
+  content: '▋';
+  display: inline-block;
+  margin-left: 2px;
+  opacity: 0.55;
+  animation: lt-stream-cursor 1s steps(2, start) infinite;
+}
+@keyframes lt-stream-cursor {
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg.bot.streaming > span:first-child::after { animation: none; }
+}
+
+/* === Chatbot: enlaces clickeables dentro de las burbujas === */
+.msg a {
+  color: #7db3ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-word;
+}
+.msg.user a { color: #fff; }
+.msg a:hover { opacity: 0.85; }

@@ -712,7 +712,7 @@ function initChatbot() {
       answer: {
         messages: [
           'Recuerda que este es un chat de demo, no puedo tomar tus datos desde aquí.',
-          'Para que te contactemos, baja a la sección de contacto al final de la página — ahí tienes el formulario y el WhatsApp directo.'
+          'Pero te paso el contacto directo: escríbenos por WhatsApp 👉 https://wa.link/kpgx6p (o al correo soporte@lowtechia.com). También está el botón de WhatsApp en la sección de contacto al final.'
         ],
         chips: ['Ir a contacto ↓']
       }
@@ -833,43 +833,38 @@ function initChatbot() {
   const HISTORY_MAX_TURNS = 6; // keep last 6 pairs (12 messages)
 
   const askLLM = async (message) => {
+    // Pedimos la respuesta en STREAMING. Devolvemos el stream crudo; el render
+    // (sendBotSequence → renderLLMStream) lo consume token por token y actualiza
+    // el historial al cerrar el stream.
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
+
+    let res;
     try {
-      const res = await fetch(LLM_API, {
+      res = await fetch(LLM_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, history: chatHistory }),
         signal: controller.signal
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const err = new Error(data.error || 'HTTP ' + res.status);
-        err.status = res.status;
-        throw err;
-      }
-      const data = await res.json();
-      if (!data.answer) throw new Error('Respuesta vacía');
-
-      // Track turn in history (OpenAI/Groq schema)
-      chatHistory.push({ role: 'user', content: message });
-      chatHistory.push({ role: 'assistant', content: data.answer });
-      while (chatHistory.length > HISTORY_MAX_TURNS * 2) chatHistory.shift();
-
-      // Split the answer into paragraphs so the bot sends them as separate
-      // messages with typing indicators between — feels more human.
-      const paragraphs = data.answer
-        .split(/\n\s*\n|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¡¿])/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const messages = paragraphs.length >= 1 && paragraphs.length <= 4
-        ? paragraphs
-        : [data.answer.trim()];
-
-      return { id: 'llm', answer: { messages } };
-    } finally {
+    } catch (err) {
       clearTimeout(timeout);
+      throw err;
     }
+
+    // Ya llegaron las cabeceras; el cuerpo puede tardar en streamear, así que
+    // cancelamos el timeout de "primer byte" y dejamos fluir el stream.
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const err = new Error(data.error || 'HTTP ' + res.status);
+      err.status = res.status;
+      throw err;
+    }
+    if (!res.body) throw new Error('Sin cuerpo de respuesta para streamear');
+
+    return { id: 'llm', stream: res.body, userMessage: message };
   };
 
   const classify = async (raw) => {
@@ -953,12 +948,30 @@ function initChatbot() {
     container.querySelectorAll('.chips').forEach((c) => c.remove());
   };
 
+  // Convierte URLs y correos en enlaces clickeables de forma SEGURA: primero
+  // escapa TODO el HTML (anti-XSS) y solo después enlaza patrones seguros
+  // (http/https y correos). El texto del bot/usuario llega como string plano.
+  const escapeHtml = (s) =>
+    String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+  const linkify = (text) => {
+    const esc = escapeHtml(text);
+    const pattern = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]]|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+    return esc.replace(pattern, (m) =>
+      m.includes('@') && !m.startsWith('http')
+        ? `<a href="mailto:${m}">${m}</a>`
+        : `<a href="${m}" target="_blank" rel="noopener">${m}</a>`
+    );
+  };
+
   const addMessage = (text, sender) => {
     maybeReset();
     const msg = document.createElement('div');
     msg.className = `msg ${sender}`;
     const body = document.createElement('span');
-    body.textContent = text;
+    body.innerHTML = linkify(text);
     const time = document.createElement('span');
     time.className = 'msg-time';
     time.textContent = timestamp();
@@ -1066,10 +1079,83 @@ function initChatbot() {
     return { label: 'Fuse (KB local)', kind: 'fuse' };
   };
 
+  // Renderiza la respuesta del LLM EN VIVO: una sola burbuja que se llena
+  // token por token a medida que llega el stream del backend.
+  const renderLLMStream = async (entry) => {
+    showTyping();
+    const reader = entry.stream.getReader();
+    const decoder = new TextDecoder();
+    let full = '';
+    let msgEl = null;
+    let body = null;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        if (!chunk) continue;
+        full += chunk;
+        if (!msgEl) {
+          // Primer token: quitamos los puntos y abrimos la burbuja viva.
+          hideTyping();
+          msgEl = addMessage('', 'bot');
+          msgEl.classList.add('streaming');
+          body = msgEl.querySelector('span');
+        }
+        if (body) body.textContent = full;
+        scrollBottom();
+      }
+    } finally {
+      hideTyping();
+    }
+
+    full = full.trim();
+
+    if (!full) {
+      // No llegó nada útil: limpiamos y mostramos un fallback amable.
+      if (msgEl) msgEl.remove();
+      const fb =
+        (fallback && fallback.answer && fallback.answer.messages && fallback.answer.messages[0]) ||
+        'Disculpa, tuve un problema para responder. Intenta de nuevo o baja a la sección de contacto al final de la página.';
+      addMessage(fb, 'bot');
+      return;
+    }
+
+    if (msgEl && body) {
+      body.innerHTML = linkify(full);
+      msgEl.classList.remove('streaming');
+    }
+
+    // Historial (igual que antes, pero al cerrar el stream).
+    chatHistory.push({ role: 'user', content: entry.userMessage });
+    chatHistory.push({ role: 'assistant', content: full });
+    while (chatHistory.length > HISTORY_MAX_TURNS * 2) chatHistory.shift();
+
+    console.info(
+      '%c[Lowtech bot]%c answered via LLM (OpenRouter · streaming)',
+      'color:#185FA5;font-weight:700',
+      'color:inherit'
+    );
+  };
+
   const sendBotSequence = async (entry) => {
     isBotTyping = true;
     sendBtn.disabled = true;
     removeChips();
+
+    // Ruta LLM en streaming: una sola burbuja que se llena en vivo.
+    if (entry && entry.stream) {
+      try {
+        await renderLLMStream(entry);
+      } catch (err) {
+        console.warn('[Lowtech bot] error renderizando stream:', err);
+      }
+      isBotTyping = false;
+      sendBtn.disabled = false;
+      input.focus();
+      return;
+    }
 
     const payload = entry && entry.answer ? entry.answer : entry || fallback;
     const id = (entry && entry.id) || 'fallback';
